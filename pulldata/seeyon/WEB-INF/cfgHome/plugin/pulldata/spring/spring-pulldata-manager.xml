@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE beans PUBLIC "-//SPRING//DTD BEAN//EN" "http://www.springframework.org/dtd/spring-beans.dtd">
+<beans default-autowire="byName">
+    <bean id="edocExchangeSendListener" class="com.seeyon.apps.ext.pulldata.listener.EdocExchangeSendListener"/>
+    <bean id="capFormInsertListener"
+          class="com.seeyon.cap4.form.modules.engin.base.formData.event.CapFormInsertListener"/>
+</beans>
