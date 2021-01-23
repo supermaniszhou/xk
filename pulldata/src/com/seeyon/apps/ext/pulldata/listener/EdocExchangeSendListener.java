@@ -404,7 +404,6 @@ public class EdocExchangeSendListener {
             fj.put("fieldName", "wjzw");
             fj.put("fieldValue", fjList);
             mapList.add(fj);
-
             //todo 发文类型，字段泛微还没提供
             //[徐矿集团]在这里添加获取发文类型返回到页面上显示，zhou:2021-01-23 16:55 开始
             String sqlExtend = "select list3 from EDOC_SUMMARY_EXTEND where summary_id=" + summaryId;
