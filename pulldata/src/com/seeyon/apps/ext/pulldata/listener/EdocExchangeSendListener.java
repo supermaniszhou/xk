@@ -61,6 +61,8 @@ public class EdocExchangeSendListener {
     @ListenEvent(event = CollaborationFinishEvent.class, async = true)
     public void finish(CollaborationFinishEvent event) {
         ProptiesUtil pUtil = new ProptiesUtil();
+        String debugger = pUtil.getValueByKey("oa.debugger.flag");
+
         String templates = pUtil.getValueByKey("oa.gfgs.templateCode");
         String templateCode = null;
         try {
@@ -130,7 +132,6 @@ public class EdocExchangeSendListener {
                                 mapList.add(fj);
                                 Map<String, String> param = new HashMap<>();
                                 param.put("mainData", JSONArray.fromObject(mapList).toString());
-                                String debugger = pUtil.getValueByKey("oa.debugger.flag");
                                 if ("true".equals(debugger)) {
                                     param.put("requestId", "206210");
                                     String result = requestHttp("/api/workflow/paService/submitRequest", param);
@@ -162,8 +163,34 @@ public class EdocExchangeSendListener {
                             }
 
                         }
-                    } else if (1 == 1) {
-
+                    } else if ("gfqjsp".equals(templateCode)) {
+                        //股份公司请假审批意见回写
+                        String qjTableName = pUtil.getValueByKey("oa.gfgs.qj.table");
+                        String qjTableYjColumn = pUtil.getValueByKey("oa.gfgs.qj.table.yj");
+                        String yjSql = "select " + qjTableYjColumn + ",field0024 from " + qjTableName + " where id =(select form_recordid from COL_SUMMARY where id =" + summaryId + ")";
+                        List<Map<String, Object>> mapList = JDBCUtil.doQuery(yjSql);
+                        if (mapList.size() > 0) {
+                            Map<String, Object> map = mapList.get(0);
+                            //调用泛微接口
+                            Map<String, Object> fmap = null;
+                            List<Map<String, Object>> fwList = new ArrayList<>();
+                            //拟办意见
+                            fmap = new HashMap<>();
+                            fmap.put("fieldName", "jtfhyj");
+                            fmap.put("fieldValue", map.get(qjTableYjColumn));
+                            fwList.add(fmap);
+                            Map<String, String> paramf = new HashMap<>();
+                            paramf.put("mainData", JSONArray.fromObject(fwList).toString());
+                            String requestId = map.get("field0024") + "";
+                            if (null != requestId && !"".equals(requestId)) {
+                                paramf.put("requestId", requestId);
+                                String result = requestHttp("/api/workflow/paService/submitRequest", paramf);
+                                if ("true".equals(debugger)) {
+                                    System.out.println(result);
+                                } else {
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -222,19 +249,20 @@ public class EdocExchangeSendListener {
     @ListenEvent(event = CollaborationStepBackEvent.class, async = true)
     public void rollback(CollaborationStepBackEvent event) {
         ProptiesUtil prop = new ProptiesUtil();
+        String debugger = prop.getValueByKey("oa.debugger.flag");
+
         String templates = prop.getValueByKey("oa.gfgs.templateCode");
         String templateCode = null;
         try {
             templateCode = event.getTemplateCode();
             if (null != templateCode && !"".equals(templateCode)) {
-                if (templates.contains(templateCode)) {
-                    Long summaryId = event.getSummaryId();
+                Long summaryId = event.getSummaryId();
+                if ("gfqsbg".equals(templateCode)) {
                     String sql = "select id,field0005,field0006,field0007,field0008,field0011 from formmain_0596 where id =(select form_recordid from COL_SUMMARY where id =" + summaryId + ")";
                     List<Map<String, Object>> list = JDBCUtil.doQuery(sql);
                     if (list.size() > 0) {
                         Map<String, Object> map = list.get(0);
                         String requireId = (String) map.get("field0011");
-                        String debugger = prop.getValueByKey("oa.debugger.flag");
                         Map<String, String> param = new HashMap<>();
                         if ("true".equals(debugger)) {
                             param.put("requestId", "206209");
@@ -243,6 +271,26 @@ public class EdocExchangeSendListener {
                         } else {
                             if (null != requireId && !"".equals(requireId)) {
                                 param.put("requestId", requireId);
+                                String result = requestHttp("/api/workflow/paService/rejectRequest", param);
+                                System.out.println(result);
+                            }
+                        }
+                    }
+                } else if ("gfqjsp".equals(templateCode)) {
+                    String qjTableName = prop.getValueByKey("oa.gfgs.qj.table");
+                    String qjSql = "select field0024 from " + qjTableName + " where id =(select form_recordid from COL_SUMMARY where id =" + summaryId + ")";
+                    List<Map<String, Object>> qjMap = JDBCUtil.doQuery(qjSql);
+                    if (qjMap.size() > 0) {
+                        Map<String, Object> map = qjMap.get(0);
+                        String requestId = map.get("field0024") + "";
+                        Map<String, String> param = new HashMap<>();
+                        if ("true".equals(debugger)) {
+                            param.put("requestId", "206209");
+                            String result = requestHttp("/api/workflow/paService/rejectRequest", param);
+                            System.out.println(result);
+                        } else {
+                            if (null != requestId && !"".equals(requestId)) {
+                                param.put("requestId", requestId);
                                 String result = requestHttp("/api/workflow/paService/rejectRequest", param);
                                 System.out.println(result);
                             }
@@ -407,7 +455,7 @@ public class EdocExchangeSendListener {
             //todo 发文类型，字段泛微还没提供
             //[徐矿集团]在这里添加获取发文类型返回到页面上显示，zhou:2021-01-23 16:55 开始
             String sqlExtend = "select list3 from EDOC_SUMMARY_EXTEND where summary_id=" + summaryId;
-            String sendEdocType="";
+            String sendEdocType = "";
             try (JDBCAgent jdbcAgent = new JDBCAgent();) {
                 jdbcAgent.execute(sqlExtend);
                 List<Map<String, Object>> mapListEx = jdbcAgent.resultSetToList();
