@@ -290,19 +290,23 @@ public class EdocExchangeSendListener {
                     List<Map<String, Object>> qjMap = JDBCUtil.doQuery(qjSql);
                     if (qjMap.size() > 0) {
                         Map<String, Object> map = qjMap.get(0);
-                        String requestId = map.get("field0024") + "";
+
                         Map<String, String> param = new HashMap<>();
-                        if ("true".equals(debugger)) {
-                            param.put("requestId", "206209");
-                            String result = requestHttp("/api/workflow/paService/rejectRequest", param);
-                            System.out.println(result);
-                        } else {
+                        if (null != map.get("field0024")) {
+                            String requestId = map.get("field0024") + "";
                             if (null != requestId && !"".equals(requestId)) {
                                 param.put("requestId", requestId);
                                 String result = requestHttp("/api/workflow/paService/rejectRequest", param);
                                 System.out.println(result);
                             }
+                        } else {
+                            if ("true".equals(debugger)) {
+                                param.put("requestId", "564569");
+                                String result = requestHttp("/api/workflow/paService/rejectRequest", param);
+                                System.out.println(result);
+                            }
                         }
+
                     }
                 }
             }
