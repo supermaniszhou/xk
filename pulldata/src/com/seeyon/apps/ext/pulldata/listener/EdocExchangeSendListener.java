@@ -181,15 +181,23 @@ public class EdocExchangeSendListener {
                             fwList.add(fmap);
                             Map<String, String> paramf = new HashMap<>();
                             paramf.put("mainData", JSONArray.fromObject(fwList).toString());
-                            String requestId = map.get("field0024") + "";
-                            if (null != requestId && !"".equals(requestId)) {
-                                paramf.put("requestId", requestId);
-                                String result = requestHttp("/api/workflow/paService/submitRequest", paramf);
+                            if (null != map.get("field0024")) {
+                                String requestId = map.get("field0024") + "";
+                                if (null != requestId && !"".equals(requestId)) {
+                                    paramf.put("requestId", requestId);
+                                    String result = requestHttp("/api/workflow/paService/submitRequest", paramf);
+                                    if ("true".equals(debugger)) {
+                                        System.out.println(result);
+                                    }
+                                }
+                            } else {
                                 if ("true".equals(debugger)) {
+                                    paramf.put("requestId", "564570");
+                                    String result = requestHttp("/api/workflow/paService/submitRequest", paramf);
                                     System.out.println(result);
-                                } else {
                                 }
                             }
+
                         }
                     }
                 }
