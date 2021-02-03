@@ -471,7 +471,7 @@ public class EdocExchangeSendListener {
             try (JDBCAgent jdbcAgent = new JDBCAgent();) {
                 jdbcAgent.execute(sqlExtend);
                 List<Map<String, Object>> mapListEx = jdbcAgent.resultSetToList();
-                if (mapList.size() > 0) {
+                if (mapListEx.size() > 0) {
                     Map<String, Object> mapEx = mapListEx.get(0);
                     String list3 = mapEx.get("list3") + "";
                     if ("0".equals(list3)) {
@@ -485,11 +485,6 @@ public class EdocExchangeSendListener {
             } catch (Exception e) {
                 LOGGER.error("zhou:EdocExchangeSendListener中send出错了：" + e.getMessage());
             }
-            //todo 发文类型
-//            map = new HashMap<>();
-//            map.put("fieldName", "");
-//            map.put("fieldValue", sendEdocType);
-//            mapList.add(map);
             //[徐矿集团]在这里添加获取发文类型返回到页面上显示，zhou:2021-01-23 16:55 截止
 
 
