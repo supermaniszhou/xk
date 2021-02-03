@@ -379,6 +379,73 @@ public class EdocExchangeSendListener {
         ProptiesUtil pUtil = new ProptiesUtil();
         Long summaryId = event.getSummaryId();
         EdocSummary edocSummary = event.getEdocSummary();
+
+        //todo 发文类型，字段泛微还没提供
+        //[徐矿集团]在这里添加获取发文类型返回到页面上显示，zhou:2021-01-23 16:55 开始
+        String sqlExtend = "select list3 from EDOC_SUMMARY_EXTEND where summary_id=" + summaryId;
+        String sendEdocType = "";
+        try (JDBCAgent jdbcAgent = new JDBCAgent();) {
+            jdbcAgent.execute(sqlExtend);
+            List<Map<String, Object>> mapListEx = jdbcAgent.resultSetToList();
+            if (mapListEx.size() > 0) {
+                Map<String, Object> mapEx = mapListEx.get(0);
+                String list3 = mapEx.get("list3") + "";
+                if ("0".equals(list3)) {
+                    //党委发文
+                    sendEdocType = "dw";
+                } else if ("0".equals(list3)) {
+                    //行政发文
+                    sendEdocType = "xz";
+                } else {
+                    sendEdocType = "";
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("zhou:EdocExchangeSendListener中send出错了：" + e.getMessage());
+        }
+        //[徐矿集团]在这里添加获取发文类型返回到页面上显示，zhou:2021-01-23 16:55 截止
+
+        //在此判断行政发文、党委发文
+        if (!"".equals(sendEdocType)) {
+            if ("dw".equals(sendEdocType)) {
+                //党委发文直接发送到股份公司下的单位
+                if (isSendGfgs(edocSummary.getSendToId())) {
+
+                }
+            } else if ("xz".equals(sendEdocType)) {
+                //行政发文发到股份公司
+                if (isSendGfgs(edocSummary.getSendToId())) {
+                    xzfwToGfgs(edocSummary, summaryId.longValue(), true);
+                }
+            }
+        }
+    }
+
+    /**
+     * 在判断一下下发单位有没有股份公司及子部门
+     */
+    public boolean isSendGfgs(String sendToId) {
+        String[] ids = sendToId.split(",");
+        boolean flag = false;
+        //在此判断所选的机构组是不是股份公司机构组
+        for (int i = 0; i < ids.length; i++) {
+            String id_2 = ids[i].split("\\|")[1];
+            if (id_2.equals(new ProptiesUtil().getGfTeamId())) {
+                flag = true;
+                break;
+            }
+        }
+        return flag;
+    }
+
+    /**
+     * 行政发文发给股份公司
+     */
+    public void xzfwToGfgs(EdocSummary edocSummary, long summaryId, boolean flag) throws SQLException {
+        ProptiesUtil pUtil = new ProptiesUtil();
+
+        //获取gfgs绑定的泛微人员id
+        List<String> fwUserId = getFwUserIdList(edocSummary.getSendToId(), flag);
         String sendToId = edocSummary.getSendToId();
         String[] sendtoidArr = sendToId.split(",");
         String getTeamMember = "select u.name,u.id from (select * from EDOC_OBJ_TEAM_MEMBER where TEAM_ID =" + pUtil.getGfTeamId() + ") s,ORG_UNIT u where s.member_id=u.id ";
@@ -409,28 +476,6 @@ public class EdocExchangeSendListener {
 
         }
 
-        //todo 发文类型，字段泛微还没提供
-        //[徐矿集团]在这里添加获取发文类型返回到页面上显示，zhou:2021-01-23 16:55 开始
-        String sqlExtend = "select list3 from EDOC_SUMMARY_EXTEND where summary_id=" + summaryId;
-        String sendEdocType = "";
-        try (JDBCAgent jdbcAgent = new JDBCAgent();) {
-            jdbcAgent.execute(sqlExtend);
-            List<Map<String, Object>> mapListEx = jdbcAgent.resultSetToList();
-            if (mapListEx.size() > 0) {
-                Map<String, Object> mapEx = mapListEx.get(0);
-                String list3 = mapEx.get("list3") + "";
-                if ("0".equals(list3)) {
-                    sendEdocType = "党委发文";
-                } else if ("0".equals(list3)) {
-                    sendEdocType = "行政发文";
-                } else {
-                    sendEdocType = "";
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.error("zhou:EdocExchangeSendListener中send出错了：" + e.getMessage());
-        }
-        //[徐矿集团]在这里添加获取发文类型返回到页面上显示，zhou:2021-01-23 16:55 截止
 
         if (unitName.size() > 0) {
             String sql = "select id,reference,filename,file_url,mime_type,attachment_size,createdate from CTP_ATTACHMENT where reference =" + summaryId;
@@ -536,34 +581,17 @@ public class EdocExchangeSendListener {
     }
 
     /**
-     * 行政发文发给股份公司
-     */
-    public void xzfwToGfgs(){
-
-    }
-
-    /**
      * 方法说明：此方法是根据机构组来获取泛微人员信息的
      * <p>
      * 获取属于股份公司的机构中机要员的id，根据id获取泛微系统在人员信息中维护的id
      * <p>
      * return：返回结果：获取到的泛微人员id的集合
      */
-    public List<String> getFwUserIdList(String sendToId) {
+    public List<String> getFwUserIdList(String sendToId, boolean flag) {
         ProptiesUtil proptiesUtil = new ProptiesUtil();
         List<String> fwUserIdList = new ArrayList<>();
 
-        String[] ids = sendToId.split(",");
-        boolean flag = false;
-        //在此判断所选的机构组是不是股份公司机构组
-        for (int i = 0; i < ids.length; i++) {
-            String id_2 = ids[i].split("\\|")[1];
-            if (id_2.equals(proptiesUtil.getGfTeamId())) {
-                flag = true;
-                break;
-            }
-        }
-        if(flag){
+        if (flag) {
             //返回单位的id、描述信息
             String sql = "select  nvl(DESCRIPTION,'-') description,id from ORG_UNIT where id in (select u.id from (select * from EDOC_OBJ_TEAM_MEMBER where TEAM_ID =" + proptiesUtil.getGfTeamId() + ") s,ORG_UNIT u where s.member_id=u.id )";
             List<Map<String, Object>> maps = JDBCUtil.doQuery(sql);
