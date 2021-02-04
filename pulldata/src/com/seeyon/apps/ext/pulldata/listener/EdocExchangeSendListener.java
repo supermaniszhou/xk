@@ -469,7 +469,7 @@ public class EdocExchangeSendListener {
 
 
         map = new HashMap<>();
-        map.put("fieldName", "lwdw1");
+        map.put("fieldName", "dwlwdw");
         map.put("fieldValue", edocSummary.getSendDepartment());
         mapList.add(map);
         map = new HashMap<>();
