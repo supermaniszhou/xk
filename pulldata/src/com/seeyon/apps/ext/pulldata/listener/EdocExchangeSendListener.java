@@ -407,17 +407,19 @@ public class EdocExchangeSendListener {
 
         //在此判断行政发文、党委发文
         if (!"".equals(sendEdocType)) {
+            Map<String, Object> gfgsMap = getSendGfgsMap(edocSummary.getSendToId());
+            //获取股份公司机构组和单位的集合
+            List<String> orgTeamList = (List<String>) gfgsMap.get("OrgTeam");
+            List<String> accountList = (List<String>) gfgsMap.get("Account");
             if ("dw".equals(sendEdocType)) {
                 //党委发文直接发送到股份公司下的单位
-//                if (isSendGfgs(edocSummary.getSendToId())) {
-
-//                }
+                //todo
+                if (orgTeamList.size() > 0 || accountList.size() > 0) {
+                    List<String> fwUserId = getFwUserIdList(gfgsMap, sendEdocType);
+                    dangWeiFaWen(edocSummary, summaryId.longValue(), gfgsMap, fwUserId);
+                }
             } else if ("xz".equals(sendEdocType)) {
                 //行政发文发到股份公司
-                //获取股份公司机构组和单位的集合
-                Map<String, Object> gfgsMap = getSendGfgsMap(edocSummary.getSendToId());
-                List<String> orgTeamList = (List<String>) gfgsMap.get("OrgTeam");
-                List<String> accountList = (List<String>) gfgsMap.get("Account");
                 if (orgTeamList.size() > 0 || accountList.size() > 0) {
                     List<String> fwUserId = getFwUserIdList(gfgsMap, sendEdocType);
                     xingzhengfwToGfgs(edocSummary, summaryId.longValue(), gfgsMap, fwUserId);
@@ -425,6 +427,70 @@ public class EdocExchangeSendListener {
             }
         }
     }
+
+    /**
+     * 党委发文
+     */
+    public void dangWeiFaWen(EdocSummary edocSummary, long summaryId, Map<String, Object> gfListMap, List<String> fwUserId) {
+        //todo
+        ProptiesUtil pUtil = new ProptiesUtil();
+        String sql = "select id,reference,filename,file_url,mime_type,attachment_size,createdate from CTP_ATTACHMENT where reference =" + summaryId;
+        List<Map<String, Object>> list = JDBCUtil.doQuery(sql);
+
+        List<Map<String, Object>> fjList = new ArrayList<>();
+        if (list.size() > 0) {
+            Map<String, Object> fjMap = null;
+            String fileDownpath = "/seeyon/rest/attachment/file/";
+            ProptiesUtil prop = new ProptiesUtil();
+            String token = GetFwTokenUtil.getOaToken();
+            for (int i = 0; i < list.size(); i++) {
+                BigDecimal bigDecimal = (BigDecimal) list.get(i).get("file_url");
+                fjMap = new HashMap<>();
+                String h = (String) list.get(i).get("filename");
+                String fileName = bigDecimal.longValue() + "" + h.substring(h.lastIndexOf("."));
+                String downloadUrl = prop.getOaUrl() + fileDownpath + bigDecimal.longValue() + "?fileName=" + fileName + "&token=" + token;
+                fjMap.put("filePath", downloadUrl);
+                fjMap.put("fileName", list.get(i).get("filename"));
+                fjList.add(fjMap);
+            }
+        }
+
+        List<Map<String, Object>> mapList = new ArrayList<>();
+        Map<String, Object> map = new HashMap<>();
+        map.put("fieldName", "wjbt");
+        map.put("fieldValue", edocSummary.getSubject().replaceAll("\r|\n", ""));
+        mapList.add(map);
+        map = new HashMap<>();
+        map.put("fieldName", "rq");
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        String startDate = sdf.format(edocSummary.getStartTime());
+        map.put("fieldValue", startDate);
+        mapList.add(map);
+
+
+        map = new HashMap<>();
+        map.put("fieldName", "lwdw1");
+        map.put("fieldValue", edocSummary.getSendDepartment());
+        mapList.add(map);
+        map = new HashMap<>();
+        map.put("fieldName", "lwh");
+        map.put("fieldValue", !"".equals(edocSummary.getDocMark()) && null != edocSummary.getDocMark() ? edocSummary.getDocMark() : "");
+        mapList.add(map);
+        //附件问题
+        Map<String, Object> fj = new HashMap<>();
+        fj.put("fieldName", "wjzw");
+        fj.put("fieldValue", fjList);
+        mapList.add(fj);
+
+
+        Map<String, String> param = new HashMap<>();
+        param.put("requestName", "集团发文");
+        param.put("workflowId", pUtil.getWorkflowId());
+        param.put("mainData", JSONArray.fromObject(mapList).toString());
+
+
+    }
+
 
     /**
      * 在判断一下下发单位有没有股份公司及子单位
