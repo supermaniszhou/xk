@@ -505,7 +505,9 @@ public class EdocExchangeSendListener {
         param.put("workflowId", pUtil.getValueByKey("fw.dwsw.receiver.notify"));
         param.put("mainData", JSONArray.fromObject(mapList).toString());
         //调用接口发送数据
-        requestInterfaceToSend(param2, fwUserId, summaryId);
+        /*党委收文知会： 不经过股份公司审批但是要知会股份公司机要科,在此获取股份公司机要科信息*/
+        List<String> gf = getFwUserIdList(gfListMap, "xz");
+        requestInterfaceToSend(param2, gf, summaryId);
 
     }
 
