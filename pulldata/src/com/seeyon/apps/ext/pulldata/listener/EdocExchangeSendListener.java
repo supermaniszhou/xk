@@ -469,7 +469,6 @@ public class EdocExchangeSendListener {
      * 党委发文
      */
     public void dangWeiFaWen(EdocSummary edocSummary, long summaryId, Map<String, Object> gfListMap, List<String> fwUserId) throws SQLException {
-        //todo
         ProptiesUtil pUtil = new ProptiesUtil();
         String sql = "select id,reference,filename,file_url,mime_type,attachment_size,createdate from CTP_ATTACHMENT where reference =" + summaryId;
         List<Map<String, Object>> list = JDBCUtil.doQuery(sql);
