@@ -388,7 +388,9 @@ public class EdocExchangeSendListener {
                             fwUserId.add(list2.get(m));
                         }
                     }
-                    requestInterfaceToSend("delete", delUrl, map, fwUserId, summaryId.longValue());
+                    if (fwUserId.size() > 0) {
+                        requestInterfaceToSend("delete", delUrl, map, fwUserId, summaryId.longValue());
+                    }
                 } catch (SQLException e) {
                     e.printStackTrace();
                 }
