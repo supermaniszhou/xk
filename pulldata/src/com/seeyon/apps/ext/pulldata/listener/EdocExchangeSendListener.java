@@ -520,7 +520,7 @@ public class EdocExchangeSendListener {
         fj.put("fieldValue", fjList);
         mapList.add(fj);
 
-        //党委收文
+        /*=========党委收文***********/
         Map<String, String> param = new HashMap<>();
         param.put("requestName", "集团发文");
         param.put("workflowId", pUtil.getValueByKey("fw.dwsw.receiver"));
