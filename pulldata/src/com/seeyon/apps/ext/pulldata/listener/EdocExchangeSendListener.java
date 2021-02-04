@@ -547,9 +547,13 @@ public class EdocExchangeSendListener {
             mapList.add(map);
             //下发单位
             map = new HashMap<>();
-            String op = unitName.toString();
+            StringBuffer nameBuf = new StringBuffer();
+            Iterator<String> it = unitName.iterator();
+            while (it.hasNext()) {
+                nameBuf.append(it.next() + ";");
+            }
             map.put("fieldName", "xsdw");
-            map.put("fieldValue", op.substring(1, op.length() - 1));
+            map.put("fieldValue", nameBuf.toString());
             mapList.add(map);
 
             map = new HashMap<>();
@@ -572,48 +576,55 @@ public class EdocExchangeSendListener {
             param.put("workflowId", pUtil.getWorkflowId());
             param.put("mainData", JSONArray.fromObject(mapList).toString());
 
-//        Map<String, Object> otherParams = new HashMap<>();
-//        otherParams.put("isnextflow ", "1");
-//        otherParams.put("delReqFlowFaild ", "1");
-//
-//        param.put("otherParams", otherParams.toString());
+            /*//Map<String, Object> otherParams = new HashMap<>();
+            //otherParams.put("isnextflow ", "1");
+            //otherParams.put("delReqFlowFaild ", "1");
+            //param.put("otherParams", otherParams.toString());*/
 
+            //调用接口发送数据
+            requestInterfaceToSend(param, fwUserId, summaryId);
+        }
 
-            String address = pUtil.getServerUrl();
-            Map<String, Object> objectMap = GetFwTokenUtil.testRegist(address);
-            String token = GetFwTokenUtil.testGetoken(objectMap);
-            String appId = pUtil.getAppId();
-            String spk = StrUtil.nullToEmpty((String) objectMap.get("spk"));
-            RSA rsa = new RSA(null, spk);
-            String userId = rsa.encryptBase64(pUtil.getSendUserId(), CharsetUtil.CHARSET_UTF_8, KeyType.PublicKey);
-            Map<String, String> headers = new HashMap<>();
-            headers.put("appid", appId);
-            headers.put("token", token);
-            headers.put("userid", userId);
-            headers.put("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
-            String url = address + pUtil.getDocreate();
-            String back1 = HttpClient.httpPostForm(url, param, headers, "utf-8");
-            System.out.println("返回结果：" + back1);
-            JSONObject object = JSONObject.parseObject(back1);
-            Map data = (Map) object.get("data");
-            String requestid = data.get("requestid").toString();
-            System.out.println(requestid);
-            String insertsql = "insert into temp_fw_requrid_id(summary_id,fw_id) values(?,?)";
+    }
+
+    public void requestInterfaceToSend(Map<String, String> param, List<String> fwUserId, long summaryId) throws SQLException {
+        ProptiesUtil pUtil = new ProptiesUtil();
+        String address = pUtil.getServerUrl();
+        Map<String, Object> objectMap = GetFwTokenUtil.testRegist(address);
+        String appId = pUtil.getAppId();
+        String spk = StrUtil.nullToEmpty((String) objectMap.get("spk"));
+        RSA rsa = new RSA(null, spk);
+        Map<String, String> headers = null;
+        if (fwUserId.size() > 0) {
             Connection connection = JDBCAgent.getRawConnection();
             PreparedStatement ps = null;
             ResultSet rs = null;
-            try {
-                ps = connection.prepareStatement(insertsql);
-                ps.setString(1, summaryId + "");
-                ps.setString(2, requestid);
-                ps.executeUpdate();
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                closeUtil(connection, ps, rs);
+            for (int i = 0; i < fwUserId.size(); i++) {
+                headers = new HashMap<>();
+                String token = GetFwTokenUtil.testGetoken(objectMap);
+                headers.put("appid", appId);
+                headers.put("token", token);
+                String userId = rsa.encryptBase64(fwUserId.get(i), CharsetUtil.CHARSET_UTF_8, KeyType.PublicKey);
+                headers.put("userid", userId);
+                headers.put("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
+                String url = address + pUtil.getDocreate();
+                String back1 = HttpClient.httpPostForm(url, param, headers, "utf-8");
+                JSONObject object = JSONObject.parseObject(back1);
+                Map data = (Map) object.get("data");
+                String requestid = data.get("requestid").toString();
+                //插入的sql语句
+                String insertsql = "insert into temp_fw_requrid_id(summary_id,fw_id) values(?,?)";
+                try {
+                    ps = connection.prepareStatement(insertsql);
+                    ps.setString(1, summaryId + "");
+                    ps.setString(2, requestid);
+                    ps.executeUpdate();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
+            closeUtil(connection, ps, rs);
         }
-
     }
 
     /**
