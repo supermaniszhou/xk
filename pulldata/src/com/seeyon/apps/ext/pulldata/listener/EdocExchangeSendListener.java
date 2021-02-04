@@ -416,13 +416,21 @@ public class EdocExchangeSendListener {
                 //todo
                 if (orgTeamList.size() > 0 || accountList.size() > 0) {
                     List<String> fwUserId = getFwUserIdList(gfgsMap, sendEdocType);
-                    dangWeiFaWen(edocSummary, summaryId.longValue(), gfgsMap, fwUserId);
+                    try {
+                        dangWeiFaWen(edocSummary, summaryId.longValue(), gfgsMap, fwUserId);
+                    } catch (SQLException sqlException) {
+                        sqlException.printStackTrace();
+                    }
                 }
             } else if ("xz".equals(sendEdocType)) {
                 //行政发文发到股份公司
                 if (orgTeamList.size() > 0 || accountList.size() > 0) {
                     List<String> fwUserId = getFwUserIdList(gfgsMap, sendEdocType);
-                    xingzhengfwToGfgs(edocSummary, summaryId.longValue(), gfgsMap, fwUserId);
+                    try {
+                        xingzhengfwToGfgs(edocSummary, summaryId.longValue(), gfgsMap, fwUserId);
+                    } catch (SQLException sqlException) {
+                        sqlException.printStackTrace();
+                    }
                 }
             }
         }
@@ -431,7 +439,7 @@ public class EdocExchangeSendListener {
     /**
      * 党委发文
      */
-    public void dangWeiFaWen(EdocSummary edocSummary, long summaryId, Map<String, Object> gfListMap, List<String> fwUserId) {
+    public void dangWeiFaWen(EdocSummary edocSummary, long summaryId, Map<String, Object> gfListMap, List<String> fwUserId) throws SQLException {
         //todo
         ProptiesUtil pUtil = new ProptiesUtil();
         String sql = "select id,reference,filename,file_url,mime_type,attachment_size,createdate from CTP_ATTACHMENT where reference =" + summaryId;
@@ -482,12 +490,22 @@ public class EdocExchangeSendListener {
         fj.put("fieldValue", fjList);
         mapList.add(fj);
 
-
+        //党委收文
         Map<String, String> param = new HashMap<>();
         param.put("requestName", "集团发文");
-        param.put("workflowId", pUtil.getWorkflowId());
+        param.put("workflowId", pUtil.getValueByKey("fw.dwsw.receiver"));
         param.put("mainData", JSONArray.fromObject(mapList).toString());
 
+        //调用接口发送数据
+        requestInterfaceToSend(param, fwUserId, summaryId);
+
+        //党委收文知会
+        Map<String, String> param2 = new HashMap<>();
+        param.put("requestName", "集团发文");
+        param.put("workflowId", pUtil.getValueByKey("fw.dwsw.receiver.notify"));
+        param.put("mainData", JSONArray.fromObject(mapList).toString());
+        //调用接口发送数据
+        requestInterfaceToSend(param2, fwUserId, summaryId);
 
     }
 
