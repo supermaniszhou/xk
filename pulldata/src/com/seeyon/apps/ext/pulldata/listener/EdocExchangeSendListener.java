@@ -346,8 +346,9 @@ public class EdocExchangeSendListener {
         ProptiesUtil prop = new ProptiesUtil();
         Long summaryId = event.getSummaryId();
 
-        String sendEdocType = getSendEdocType(summaryId.longValue());
-
+        String edocSql = "select nvl(send_to_id,'-') sendtoid from EDOC_SUMMARY where id =" + summaryId.longValue();
+        List<Map<String, Object>> mapList = JDBCUtil.doQuery(edocSql);
+        Map<String, Object> summaryMap = mapList.get(0);
         List<CtpAffair> affairs = event.getList();
         for (int i = 0; i < affairs.size(); i++) {
             CtpAffair ctpAffair = affairs.get(i);
@@ -360,19 +361,37 @@ public class EdocExchangeSendListener {
                 map.put("requestId", (String) list.get(0).get("fw_id"));
                 map.put("otherParams", "{\"ismonitor\":\"1\"}");
 
-                Map<String, Object> objectMap = GetFwTokenUtil.testRegist(prop.getServerUrl());
-                String token = GetFwTokenUtil.testGetoken(objectMap);
-                String appId = prop.getAppId();
-                String spk = StrUtil.nullToEmpty((String) objectMap.get("spk"));
-                RSA rsa = new RSA(null, spk);
-                String userId = rsa.encryptBase64(prop.getSendUserId(), CharsetUtil.CHARSET_UTF_8, KeyType.PublicKey);
-                Map<String, String> headers = new HashMap<>();
-                headers.put("appid", appId);
-                headers.put("token", token);
-                headers.put("userid", userId);
-                headers.put("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
-                String back1 = HttpClient.httpPostForm(delUrl, map, headers, "utf-8");
-                System.out.println(back1);
+//                Map<String, Object> objectMap = GetFwTokenUtil.testRegist(prop.getServerUrl());
+//                String token = GetFwTokenUtil.testGetoken(objectMap);
+//                String appId = prop.getAppId();
+//                String spk = StrUtil.nullToEmpty((String) objectMap.get("spk"));
+//                RSA rsa = new RSA(null, spk);
+//                String userId = rsa.encryptBase64(prop.getSendUserId(), CharsetUtil.CHARSET_UTF_8, KeyType.PublicKey);
+//                Map<String, String> headers = new HashMap<>();
+//                headers.put("appid", appId);
+//                headers.put("token", token);
+//                headers.put("userid", userId);
+//                headers.put("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
+//                String back1 = HttpClient.httpPostForm(delUrl, map, headers, "utf-8");
+//                System.out.println(back1);
+                String sendEdocType = getSendEdocType(summaryId.longValue());
+                String sendToid = summaryMap.get("sendtoid") + "";
+                Map<String, Object> gfgsMap = getSendGfgsMap(sendToid);
+                try {
+                    List<String> fwUserId = null;
+                    if ("xz".equals(sendEdocType)) {
+                        fwUserId = getFwUserIdList(gfgsMap, sendEdocType);
+                    } else if ("dw".equals(sendEdocType)) {
+                        fwUserId = getFwUserIdList(gfgsMap, "xz");
+                        List<String> list2 = getFwUserIdList(gfgsMap, "dw");
+                        for (int m = 0; m < list2.size(); m++) {
+                            fwUserId.add(list2.get(m));
+                        }
+                    }
+                    requestInterfaceToSend("delete", delUrl, map, fwUserId, summaryId.longValue());
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                }
             }
         }
     }
