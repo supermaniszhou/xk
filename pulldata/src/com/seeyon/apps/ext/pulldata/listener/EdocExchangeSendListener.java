@@ -31,6 +31,7 @@ import com.seeyon.v3x.edoc.exception.EdocException;
 import com.seeyon.v3x.edoc.manager.EdocManager;
 import net.sf.json.JSONArray;
 import org.apache.commons.logging.Log;
+import org.xmpp.resultsetmanagement.Result;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -380,7 +381,6 @@ public class EdocExchangeSendListener {
         Long summaryId = event.getSummaryId();
         EdocSummary edocSummary = event.getEdocSummary();
 
-        //todo 发文类型，字段泛微还没提供
         //[徐矿集团]在这里添加获取发文类型返回到页面上显示，zhou:2021-01-23 16:55 开始
         String sqlExtend = "select list3 from EDOC_SUMMARY_EXTEND where summary_id=" + summaryId;
         String sendEdocType = "";
@@ -409,71 +409,103 @@ public class EdocExchangeSendListener {
         if (!"".equals(sendEdocType)) {
             if ("dw".equals(sendEdocType)) {
                 //党委发文直接发送到股份公司下的单位
-                if (isSendGfgs(edocSummary.getSendToId())) {
+//                if (isSendGfgs(edocSummary.getSendToId())) {
 
-                }
+//                }
             } else if ("xz".equals(sendEdocType)) {
                 //行政发文发到股份公司
-                if (isSendGfgs(edocSummary.getSendToId())) {
-                    xzfwToGfgs(edocSummary, summaryId.longValue(), true);
+                //获取股份公司机构组和单位的集合
+                Map<String, Object> gfgsMap = getSendGfgsMap(edocSummary.getSendToId());
+                List<String> orgTeamList = (List<String>) gfgsMap.get("OrgTeam");
+                List<String> accountList = (List<String>) gfgsMap.get("Account");
+                if (orgTeamList.size() > 0 || accountList.size() > 0) {
+                    List<String> fwUserId = getFwUserIdList(gfgsMap, sendEdocType);
+                    xingzhengfwToGfgs(edocSummary, summaryId.longValue(), gfgsMap, fwUserId);
                 }
             }
         }
     }
 
     /**
-     * 在判断一下下发单位有没有股份公司及子部门
+     * 在判断一下下发单位有没有股份公司及子单位
+     * <p>
+     * 属于股份公司的单位也是需要维护的（描述信息中添加“股份公司”）
+     * <p>
+     * 返回属于股份公司和机构组和单位集合
      */
-    public boolean isSendGfgs(String sendToId) {
+    public Map<String, Object> getSendGfgsMap(String sendToId) {
         String[] ids = sendToId.split(",");
-        boolean flag = false;
-        //在此判断所选的机构组是不是股份公司机构组
+
+        Map<String, Object> map = new HashMap<>();
+        //属于股份公司的机构组集合
+        List<String> orgTeamList = new ArrayList<>();
+        //属于股份公司的单位集合
+        List<String> accountList = new ArrayList<>();
         for (int i = 0; i < ids.length; i++) {
-            String id_2 = ids[i].split("\\|")[1];
-            if (id_2.equals(new ProptiesUtil().getGfTeamId())) {
-                flag = true;
-                break;
-            }
-        }
-        return flag;
-    }
-
-    /**
-     * 行政发文发给股份公司
-     */
-    public void xzfwToGfgs(EdocSummary edocSummary, long summaryId, boolean flag) throws SQLException {
-        ProptiesUtil pUtil = new ProptiesUtil();
-
-        //获取gfgs绑定的泛微人员id
-        List<String> fwUserId = getFwUserIdList(edocSummary.getSendToId(), flag);
-        String sendToId = edocSummary.getSendToId();
-        String[] sendtoidArr = sendToId.split(",");
-        String getTeamMember = "select u.name,u.id from (select * from EDOC_OBJ_TEAM_MEMBER where TEAM_ID =" + pUtil.getGfTeamId() + ") s,ORG_UNIT u where s.member_id=u.id ";
-        String unitSql = "select id,name,path from org_unit where id=?";
-        Connection connection = JDBCAgent.getRawConnection();
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        List<String> unitName = new ArrayList<>();
-        for (String s : sendtoidArr) {
-            String sId = s.split("\\|")[1];
-            if (sId.equals(pUtil.getGfTeamId())) {
-                List<Map<String, Object>> mapList = JDBCUtil.doQuery(getTeamMember);
-                for (int i = 0; i < mapList.size(); i++) {
-                    unitName.add((String) mapList.get(i).get("name"));
+            String[] typeAndId = ids[i].split("\\|");
+            String type = typeAndId[0];
+            String id_2 = typeAndId[1];
+            //在此判断所选的机构组是不是股份公司机构组
+            if (type.equals("OrgTeam")) {
+                String gfTeamId = new ProptiesUtil().getGfTeamId();
+                if (gfTeamId.indexOf(id_2) != -1) {
+                    orgTeamList.add(id_2);
                 }
-            } else {
-                ps = connection.prepareStatement(unitSql);
-                ps.setString(1, sId);
-                rs = ps.executeQuery();
-                while (rs.next()) {
-                    String path = rs.getString("path");
-                    String p = path.substring(0, 12);
-                    if (path.length() == 16 && p.equals(pUtil.getGfPath())) {
-                        unitName.add(rs.getString("name"));
+            }
+            //判断所选的单位是不是属于股份公司
+            if (type.equals("Account")) {
+                String sql = "select nvl(description,'-') description from ORG_UNIT where id =" + id_2;
+                List<Map<String, Object>> maps = JDBCUtil.doQuery(sql);
+                for (int k = 0; k < maps.size(); k++) {
+                    Map<String, Object> m = maps.get(k);
+                    String description = (m.get("description") + "").trim();
+                    if (description.equals("股份公司")) {
+                        accountList.add(id_2);
                     }
                 }
             }
 
+        }
+        map.put("OrgTeam", orgTeamList);
+        map.put("Account", accountList);
+        return map;
+    }
+
+    /**
+     * 行政发文发给股份公司
+     * 参数说明：
+     * edocSummary  公文对象
+     * summaryId    公文的id
+     * gfListMap    下发所选的，属于股份公司的单位id的集合
+     * fwUserId     泛微账号id
+     */
+    public void xingzhengfwToGfgs(EdocSummary edocSummary, long summaryId, Map<String, Object> gfListMap, List<String> fwUserId) throws SQLException {
+        ProptiesUtil pUtil = new ProptiesUtil();
+        //获取gfgs绑定的泛微人员id
+        List<String> orgTeamList = (List<String>) gfListMap.get("OrgTeam");
+        List<String> accountList = (List<String>) gfListMap.get("Account");
+        //需要发送的单位名称的集合
+        Set<String> unitName = new HashSet<>();
+        if (orgTeamList.size() > 0) {
+            for (int k = 0; k < orgTeamList.size(); k++) {
+                String getTeamMember = "select u.name,u.id from (select * from EDOC_OBJ_TEAM_MEMBER where TEAM_ID =" + orgTeamList.get(k) + ") s,ORG_UNIT u where s.member_id=u.id ";
+                List<Map<String, Object>> mapList = JDBCUtil.doQuery(getTeamMember);
+                for (int i = 0; i < mapList.size(); i++) {
+                    unitName.add(((String) mapList.get(i).get("name")).trim());
+                }
+            }
+        }
+        if (accountList.size() > 0) {
+            StringBuilder sb = new StringBuilder();
+            sb.append("select u.name,u.id from ORG_UNIT u where u.id  in (0");
+            for (int i = 0; i < accountList.size(); i++) {
+                sb.append("," + accountList.get(i));
+            }
+            sb.append(")");
+            List<Map<String, Object>> mapList = JDBCUtil.doQuery(sb.toString());
+            for (int i = 0; i < mapList.size(); i++) {
+                unitName.add(((String) mapList.get(i).get("name")).trim());
+            }
         }
 
 
@@ -567,6 +599,9 @@ public class EdocExchangeSendListener {
             String requestid = data.get("requestid").toString();
             System.out.println(requestid);
             String insertsql = "insert into temp_fw_requrid_id(summary_id,fw_id) values(?,?)";
+            Connection connection = JDBCAgent.getRawConnection();
+            PreparedStatement ps = null;
+            Result rs = null;
             try {
                 ps = connection.prepareStatement(insertsql);
                 ps.setString(1, summaryId + "");
@@ -578,6 +613,7 @@ public class EdocExchangeSendListener {
                 closeUtil(connection, ps, rs);
             }
         }
+
     }
 
     /**
@@ -585,22 +621,63 @@ public class EdocExchangeSendListener {
      * <p>
      * 获取属于股份公司的机构中机要员的id，根据id获取泛微系统在人员信息中维护的id
      * <p>
+     * type为发文类型（行政发文、党委发文）
      * return：返回结果：获取到的泛微人员id的集合
      */
-    public List<String> getFwUserIdList(String sendToId, boolean flag) {
+    public List<String> getFwUserIdList(Map<String, Object> gfListMap, String sendtype) {
         ProptiesUtil proptiesUtil = new ProptiesUtil();
         List<String> fwUserIdList = new ArrayList<>();
-
-        if (flag) {
-            //返回单位的id、描述信息
-            String sql = "select  nvl(DESCRIPTION,'-') description,id from ORG_UNIT where id in (select u.id from (select * from EDOC_OBJ_TEAM_MEMBER where TEAM_ID =" + proptiesUtil.getGfTeamId() + ") s,ORG_UNIT u where s.member_id=u.id )";
-            List<Map<String, Object>> maps = JDBCUtil.doQuery(sql);
-            for (int i = 0; i < maps.size(); i++) {
-                Map<String, Object> map = maps.get(i);
-                String type = (String) map.get("description");
-                //根据单位描述的内容区分该单位是否属于股份公司
-                if (type.equals("股份公司")) {
-                    String unitId = map.get("id") + "";
+        List<String> orgTeamList = (List<String>) gfListMap.get("OrgTeam");
+        List<String> accountList = (List<String>) gfListMap.get("Account");
+        //类型为行政发文
+        if (sendtype.equals("xz")) {
+            if (orgTeamList.size() > 0 || accountList.size() > 0) {
+                String getUnitIdSql = "select id from ORG_UNIT where path= " + proptiesUtil.getGfPath();
+                List<Map<String, Object>> unitList = JDBCUtil.doQuery(getUnitIdSql);
+                Map<String, Object> idMap = unitList.get(0);
+                String unitId = idMap.get("id") + "";
+                String getFwUserIdSql = "SELECT nvl(ext_attr_2,'0') fwuserid from ADDRESSBOOK where member_id in (select  SOURCE_ID  from ORG_RELATIONSHIP where OBJECTIVE0_ID=" + unitId + " and OBJECTIVE1_ID=(select id from org_role where ORG_ACCOUNT_ID=" + unitId + " and IS_ENABLE=1 and code ='UnitJyy'))";
+                List<Map<String, Object>> fwUserIds = JDBCUtil.doQuery(getFwUserIdSql);
+                for (int j = 0; j < fwUserIds.size(); j++) {
+                    Map<String, Object> fwUserIdMap = fwUserIds.get(j);
+                    //获取维护的泛微的人员编号
+                    String fwuserid = fwUserIdMap.get("fwuserid") + "";
+                    if (!"0".equals(fwuserid)) {
+                        fwUserIdList.add(fwuserid);
+                    }
+                }
+            }
+        }
+        //党委发文
+        else if (sendtype.equals("dw")) {
+            if (orgTeamList.size() > 0) {
+                for (int k = 0; k < orgTeamList.size(); k++) {
+                    //返回单位的id、描述信息
+                    String sql = "select  nvl(DESCRIPTION,'-') description,id from ORG_UNIT where id in (select u.id from (select * from EDOC_OBJ_TEAM_MEMBER where TEAM_ID =" + orgTeamList.get(k) + ") s,ORG_UNIT u where s.member_id=u.id )";
+                    List<Map<String, Object>> maps = JDBCUtil.doQuery(sql);
+                    for (int i = 0; i < maps.size(); i++) {
+                        Map<String, Object> map = maps.get(i);
+                        String type = (String) map.get("description");
+                        String unitId = map.get("id") + "";
+                        //根据单位描述的内容区分该单位是否属于股份公司
+                        //根据单位id关联“单位机要员”，根据单位机要员id关联人员信息中扩展字段“泛微人员编号”，返回“泛微人员编号”字段对应的内容
+                        String getFwUserIdSql = "SELECT nvl(ext_attr_2,'0') fwuserid from ADDRESSBOOK where member_id in (select  SOURCE_ID  from ORG_RELATIONSHIP where OBJECTIVE0_ID=" + unitId + " and OBJECTIVE1_ID=(select id from org_role where ORG_ACCOUNT_ID=" + unitId + " and IS_ENABLE=1 and code ='UnitJyy'))";
+                        List<Map<String, Object>> fwUserIds = JDBCUtil.doQuery(getFwUserIdSql);
+                        for (int j = 0; j < fwUserIds.size(); j++) {
+                            Map<String, Object> fwUserIdMap = fwUserIds.get(i);
+                            //获取维护的泛微的人员编号
+                            String fwuserid = fwUserIdMap.get("fwuserid") + "";
+                            if (!"0".equals(fwuserid)) {
+                                fwUserIdList.add(fwuserid);
+                            }
+                        }
+                    }
+                }
+            }
+            //单位属于股份公司
+            if (accountList.size() > 0) {
+                for (int i = 0; i < accountList.size(); i++) {
+                    String unitId = accountList.get(i);
                     //根据单位id关联“单位机要员”，根据单位机要员id关联人员信息中扩展字段“泛微人员编号”，返回“泛微人员编号”字段对应的内容
                     String getFwUserIdSql = "SELECT nvl(ext_attr_2,'0') fwuserid from ADDRESSBOOK where member_id in (select  SOURCE_ID  from ORG_RELATIONSHIP where OBJECTIVE0_ID=" + unitId + " and OBJECTIVE1_ID=(select id from org_role where ORG_ACCOUNT_ID=" + unitId + " and IS_ENABLE=1 and code ='UnitJyy'))";
                     List<Map<String, Object>> fwUserIds = JDBCUtil.doQuery(getFwUserIdSql);
@@ -615,7 +692,6 @@ public class EdocExchangeSendListener {
                 }
             }
         }
-
         return fwUserIdList;
     }
 
