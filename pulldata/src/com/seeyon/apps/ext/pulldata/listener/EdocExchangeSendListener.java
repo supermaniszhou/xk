@@ -601,7 +601,7 @@ public class EdocExchangeSendListener {
             String insertsql = "insert into temp_fw_requrid_id(summary_id,fw_id) values(?,?)";
             Connection connection = JDBCAgent.getRawConnection();
             PreparedStatement ps = null;
-            Result rs = null;
+            ResultSet rs = null;
             try {
                 ps = connection.prepareStatement(insertsql);
                 ps.setString(1, summaryId + "");
