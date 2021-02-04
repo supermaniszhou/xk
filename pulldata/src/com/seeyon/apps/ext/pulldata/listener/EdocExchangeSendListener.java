@@ -344,13 +344,15 @@ public class EdocExchangeSendListener {
     @ListenEvent(event = EdocCancelEvent.class, async = true)
     public void cancel(EdocCancelEvent event) {
         ProptiesUtil prop = new ProptiesUtil();
+        Long summaryId = event.getSummaryId();
+
+        String sendEdocType = getSendEdocType(summaryId.longValue());
 
         List<CtpAffair> affairs = event.getList();
         for (int i = 0; i < affairs.size(); i++) {
             CtpAffair ctpAffair = affairs.get(i);
             String memberId = ctpAffair.getMemberId() + "";
             if (memberId.equals(prop.getOaPendingMemberId())) {
-                Long summaryId = event.getSummaryId();
                 String sql = "select summary_id,fw_id from temp_fw_requrid_id where summary_id=" + summaryId + "";
                 List<Map<String, Object>> list = JDBCUtil.doQuery(sql);
                 String delUrl = prop.getServerUrl() + "/api/workflow/paService/deleteRequest";
@@ -375,12 +377,10 @@ public class EdocExchangeSendListener {
         }
     }
 
-    @ListenEvent(event = EdocExchangeSendEvent.class, async = true)
-    public void send(EdocExchangeSendEvent event) throws BusinessException, FileNotFoundException, UnsupportedEncodingException, SQLException {
-        ProptiesUtil pUtil = new ProptiesUtil();
-        Long summaryId = event.getSummaryId();
-        EdocSummary edocSummary = event.getEdocSummary();
-
+    /**
+     * 根据summaryid获取发文类型，并返回出去
+     */
+    public String getSendEdocType(long summaryId) {
         //[徐矿集团]在这里添加获取发文类型返回到页面上显示，zhou:2021-01-23 16:55 开始
         String sqlExtend = "select list3 from EDOC_SUMMARY_EXTEND where summary_id=" + summaryId;
         String sendEdocType = "";
@@ -404,6 +404,16 @@ public class EdocExchangeSendListener {
             LOGGER.error("zhou:EdocExchangeSendListener中send出错了：" + e.getMessage());
         }
         //[徐矿集团]在这里添加获取发文类型返回到页面上显示，zhou:2021-01-23 16:55 截止
+        return sendEdocType;
+    }
+
+    @ListenEvent(event = EdocExchangeSendEvent.class, async = true)
+    public void send(EdocExchangeSendEvent event) {
+        Long summaryId = event.getSummaryId();
+        EdocSummary edocSummary = event.getEdocSummary();
+
+        //获取发文类型
+        String sendEdocType = getSendEdocType(summaryId.longValue());
 
         //在此判断行政发文、党委发文
         if (!"".equals(sendEdocType)) {
@@ -497,9 +507,10 @@ public class EdocExchangeSendListener {
         param.put("mainData", JSONArray.fromObject(mapList).toString());
 
         //调用接口发送数据
-        requestInterfaceToSend(param, fwUserId, summaryId);
+        String url = pUtil.getServerUrl() + pUtil.getDocreate();
+        requestInterfaceToSend("new", url, param, fwUserId, summaryId);
 
-        //党委收文知会
+        /*=========党委收文知会***********/
         Map<String, String> param2 = new HashMap<>();
         param.put("requestName", "集团发文");
         param.put("workflowId", pUtil.getValueByKey("fw.dwsw.receiver.notify"));
@@ -507,7 +518,7 @@ public class EdocExchangeSendListener {
         //调用接口发送数据
         /*党委收文知会： 不经过股份公司审批但是要知会股份公司机要科,在此获取股份公司机要科信息*/
         List<String> gf = getFwUserIdList(gfListMap, "xz");
-        requestInterfaceToSend(param2, gf, summaryId);
+        requestInterfaceToSend("new", url, param2, gf, summaryId);
 
     }
 
@@ -668,12 +679,22 @@ public class EdocExchangeSendListener {
             //param.put("otherParams", otherParams.toString());*/
 
             //调用接口发送数据
-            requestInterfaceToSend(param, fwUserId, summaryId);
+            //新建接口url
+            String url = pUtil.getServerUrl() + pUtil.getDocreate();
+            requestInterfaceToSend("new", url, param, fwUserId, summaryId);
         }
 
     }
 
-    public void requestInterfaceToSend(Map<String, String> param, List<String> fwUserId, long summaryId) throws SQLException {
+    /**
+     * @param type      调用类型  是新建还是删除
+     * @param url       接口地址   http://xxxxx/xxxxx
+     * @param param     接口数据
+     * @param fwUserId  需要发送的泛微的人员id
+     * @param summaryId 公文的id
+     * @throws SQLException
+     */
+    public void requestInterfaceToSend(String type, String url, Map<String, String> param, List<String> fwUserId, long summaryId) throws SQLException {
         ProptiesUtil pUtil = new ProptiesUtil();
         String address = pUtil.getServerUrl();
         Map<String, Object> objectMap = GetFwTokenUtil.testRegist(address);
@@ -693,20 +714,23 @@ public class EdocExchangeSendListener {
                 String userId = rsa.encryptBase64(fwUserId.get(i), CharsetUtil.CHARSET_UTF_8, KeyType.PublicKey);
                 headers.put("userid", userId);
                 headers.put("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
-                String url = address + pUtil.getDocreate();
                 String back1 = HttpClient.httpPostForm(url, param, headers, "utf-8");
-                JSONObject object = JSONObject.parseObject(back1);
-                Map data = (Map) object.get("data");
-                String requestid = data.get("requestid").toString();
-                //插入的sql语句
-                String insertsql = "insert into temp_fw_requrid_id(summary_id,fw_id) values(?,?)";
-                try {
-                    ps = connection.prepareStatement(insertsql);
-                    ps.setString(1, summaryId + "");
-                    ps.setString(2, requestid);
-                    ps.executeUpdate();
-                } catch (Exception e) {
-                    e.printStackTrace();
+                if ("new".equals(type)) {
+                    if (back1.indexOf("requestid") != -1) {
+                        JSONObject object = JSONObject.parseObject(back1);
+                        Map data = (Map) object.get("data");
+                        String requestid = data.get("requestid").toString();
+                        //插入的sql语句
+                        String insertsql = "insert into temp_fw_requrid_id(summary_id,fw_id) values(?,?)";
+                        try {
+                            ps = connection.prepareStatement(insertsql);
+                            ps.setString(1, summaryId + "");
+                            ps.setString(2, requestid);
+                            ps.executeUpdate();
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
                 }
             }
             closeUtil(connection, ps, rs);
