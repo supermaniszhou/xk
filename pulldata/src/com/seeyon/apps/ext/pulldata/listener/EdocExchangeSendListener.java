@@ -717,12 +717,10 @@ public class EdocExchangeSendListener {
             Connection connection = JDBCAgent.getRawConnection();
             PreparedStatement ps = null;
             ResultSet rs = null;
+            Map<String, Object> objectMap = GetFwTokenUtil.testRegist(address);
+            String spk = StrUtil.nullToEmpty((String) objectMap.get("spk"));
+            RSA rsa = new RSA(null, spk);
             for (int i = 0; i < fwUserId.size(); i++) {
-
-                Map<String, Object> objectMap = GetFwTokenUtil.testRegist(address);
-                String spk = StrUtil.nullToEmpty((String) objectMap.get("spk"));
-                RSA rsa = new RSA(null, spk);
-
                 headers = new HashMap<>();
                 String token = GetFwTokenUtil.testGetoken(objectMap);
                 headers.put("appid", appId);
