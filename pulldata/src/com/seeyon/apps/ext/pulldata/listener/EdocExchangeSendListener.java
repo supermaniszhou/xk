@@ -709,16 +709,20 @@ public class EdocExchangeSendListener {
     public void requestInterfaceToSend(String type, String url, Map<String, String> param, List<String> fwUserId, long summaryId) throws SQLException {
         ProptiesUtil pUtil = new ProptiesUtil();
         String address = pUtil.getServerUrl();
-        Map<String, Object> objectMap = GetFwTokenUtil.testRegist(address);
+
         String appId = pUtil.getAppId();
-        String spk = StrUtil.nullToEmpty((String) objectMap.get("spk"));
-        RSA rsa = new RSA(null, spk);
+
         Map<String, String> headers = null;
         if (fwUserId.size() > 0) {
             Connection connection = JDBCAgent.getRawConnection();
             PreparedStatement ps = null;
             ResultSet rs = null;
             for (int i = 0; i < fwUserId.size(); i++) {
+
+                Map<String, Object> objectMap = GetFwTokenUtil.testRegist(address);
+                String spk = StrUtil.nullToEmpty((String) objectMap.get("spk"));
+                RSA rsa = new RSA(null, spk);
+
                 headers = new HashMap<>();
                 String token = GetFwTokenUtil.testGetoken(objectMap);
                 headers.put("appid", appId);
