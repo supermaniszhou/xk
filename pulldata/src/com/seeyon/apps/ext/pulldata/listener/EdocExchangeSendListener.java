@@ -433,7 +433,12 @@ public class EdocExchangeSendListener {
                 //党委发文直接发送到股份公司下的单位
                 //todo
                 if (orgTeamList.size() > 0 || accountList.size() > 0) {
-                    List<String> fwUserId = getFwUserIdList(gfgsMap, sendEdocType);
+                    List<String> fwUserId = null;
+                    fwUserId = getFwUserIdList(gfgsMap, "xz");
+                    List<String> list2 = getFwUserIdList(gfgsMap, "dw");
+                    for (int m = 0; m < list2.size(); m++) {
+                        fwUserId.add(list2.get(m));
+                    }
                     try {
                         dangWeiFaWen(edocSummary, summaryId.longValue(), gfgsMap, fwUserId);
                     } catch (SQLException sqlException) {
