@@ -510,7 +510,7 @@ public class EdocExchangeSendListener {
         /*=========党委收文***********/
         Map<String, String> param = new HashMap<>();
         param.put("requestName", "集团发文");
-        param.put("workflowId", pUtil.getValueByKey("fw.dwsw.receiver"));
+        param.put("workflowId", pUtil.getValueByKey("fw.dwsw.receiver.workflowId"));
         param.put("mainData", JSONArray.fromObject(mapList).toString());
 
         //调用接口发送数据
@@ -520,7 +520,7 @@ public class EdocExchangeSendListener {
         /*=========党委收文知会***********/
         Map<String, String> param2 = new HashMap<>();
         param.put("requestName", "集团发文");
-        param.put("workflowId", pUtil.getValueByKey("fw.dwsw.receiver.notify"));
+        param.put("workflowId", pUtil.getValueByKey("fw.dwsw.receiver.notify.workflowId"));
         param.put("mainData", JSONArray.fromObject(mapList).toString());
         //调用接口发送数据
         /*党委收文知会： 不经过股份公司审批但是要知会股份公司机要科,在此获取股份公司机要科信息*/
