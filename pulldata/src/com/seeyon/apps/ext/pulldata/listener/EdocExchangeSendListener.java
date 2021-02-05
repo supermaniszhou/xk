@@ -414,7 +414,7 @@ public class EdocExchangeSendListener {
                 if ("0".equals(list3)) {
                     //党委发文
                     sendEdocType = "dw";
-                } else if ("0".equals(list3)) {
+                } else if ("1".equals(list3)) {
                     //行政发文
                     sendEdocType = "xz";
                 } else {
