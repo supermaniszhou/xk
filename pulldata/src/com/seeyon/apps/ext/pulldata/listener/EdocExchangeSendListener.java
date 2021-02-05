@@ -731,6 +731,7 @@ public class EdocExchangeSendListener {
                 headers.put("userid", userId);
                 headers.put("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
                 String back1 = HttpClient.httpPostForm(url, param, headers, "utf-8");
+                System.out.println(back1);
                 if ("new".equals(type)) {
                     if (back1.indexOf("requestid") != -1) {
                         JSONObject object = JSONObject.parseObject(back1);
