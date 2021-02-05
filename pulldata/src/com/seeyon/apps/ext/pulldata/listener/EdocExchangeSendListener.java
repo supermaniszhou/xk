@@ -361,19 +361,6 @@ public class EdocExchangeSendListener {
                 map.put("requestId", (String) list.get(0).get("fw_id"));
                 map.put("otherParams", "{\"ismonitor\":\"1\"}");
 
-//                Map<String, Object> objectMap = GetFwTokenUtil.testRegist(prop.getServerUrl());
-//                String token = GetFwTokenUtil.testGetoken(objectMap);
-//                String appId = prop.getAppId();
-//                String spk = StrUtil.nullToEmpty((String) objectMap.get("spk"));
-//                RSA rsa = new RSA(null, spk);
-//                String userId = rsa.encryptBase64(prop.getSendUserId(), CharsetUtil.CHARSET_UTF_8, KeyType.PublicKey);
-//                Map<String, String> headers = new HashMap<>();
-//                headers.put("appid", appId);
-//                headers.put("token", token);
-//                headers.put("userid", userId);
-//                headers.put("Content-Type", "application/x-www-form-urlencoded; charset=utf-8");
-//                String back1 = HttpClient.httpPostForm(delUrl, map, headers, "utf-8");
-//                System.out.println(back1);
                 String sendEdocType = getSendEdocType(summaryId.longValue());
                 String sendToid = summaryMap.get("sendtoid") + "";
                 Map<String, Object> gfgsMap = getSendGfgsMap(sendToid);
