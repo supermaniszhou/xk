@@ -1,12 +1,7 @@
 package com.seeyon.cap4.form.modules.engin.base.formData.fw;
 
-import cn.hutool.core.util.CharsetUtil;
-import cn.hutool.core.util.StrUtil;
-import cn.hutool.crypto.asymmetric.KeyType;
-import cn.hutool.crypto.asymmetric.RSA;
 import com.alibaba.fastjson.JSONObject;
 import com.seeyon.common.GetFwTokenUtil;
-import com.seeyon.common.HttpClient;
 import com.seeyon.common.JDBCUtil;
 import com.seeyon.common.ProptiesUtil;
 import com.seeyon.ctp.common.log.CtpLogFactory;
