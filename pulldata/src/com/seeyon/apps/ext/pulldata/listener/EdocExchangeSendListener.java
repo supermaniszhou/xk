@@ -814,11 +814,12 @@ public class EdocExchangeSendListener {
             if (accountList.size() > 0) {
                 for (int i = 0; i < accountList.size(); i++) {
                     String unitId = accountList.get(i);
+
                     //根据单位id关联“单位机要员”，根据单位机要员id关联人员信息中扩展字段“泛微人员编号”，返回“泛微人员编号”字段对应的内容
                     String getFwUserIdSql = "SELECT nvl(ext_attr_2,'0') fwuserid from ADDRESSBOOK where member_id in (select  SOURCE_ID  from ORG_RELATIONSHIP where OBJECTIVE0_ID=" + unitId + " and OBJECTIVE1_ID=(select id from org_role where ORG_ACCOUNT_ID=" + unitId + " and IS_ENABLE=1 and code ='UnitJyy'))";
                     List<Map<String, Object>> fwUserIds = JDBCUtil.doQuery(getFwUserIdSql);
-                    for (int j = 0; j < fwUserIds.size(); j++) {
-                        Map<String, Object> fwUserIdMap = fwUserIds.get(i);
+                    for (int k = 0; k < fwUserIds.size(); k++) {
+                        Map<String, Object> fwUserIdMap = fwUserIds.get(k);
                         //获取维护的泛微的人员编号
                         String fwuserid = fwUserIdMap.get("fwuserid") + "";
                         if (!"0".equals(fwuserid)) {
