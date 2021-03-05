@@ -240,8 +240,10 @@ public class FwHttpSend implements Runnable {
                 //sendUserId 这个值是根据股份公司的path 获取id ，然后去获取的
                 String back1 = GetFwTokenUtil.requestHttp(prop.getDocreate(), param, sendUserId);
                 if ("true".equals(prop.getFlag())) {
-                    System.out.println("返回结果：" + back1);
+                    System.out.println("发布会议通知返回结果：" + back1);
                 }
+                System.out.println("发布会议通知返回结果：" + back1);
+
                 if (back1.indexOf("requestid") != -1) {
                     JSONObject object = JSONObject.parseObject(back1);
                     Map data = (Map) object.get("data");
